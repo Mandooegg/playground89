@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,viewport-fit=cover">
+    <title>SITE-MASTER v3.0</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- 기존 CSS 스타일은 동일하게 유지 (지면 관계상 생략하지만, 실제 파일에는 포함되어야 함) -->
+    <style>
+        /* 여기에 처음에 주셨던 스타일 시트 전체를 복사해서 넣으세요 */
+        :root{--bg0:#0a0e17;--bg1:#111827;--bg2:#1a2235;--bg3:#1f2a40;--blue:#3b82f6;--cyan:#06b6d4;--green:#10b981;--amber:#f59e0b;--red:#ef4444;--purple:#8b5cf6;--t1:#f1f5f9;--t2:#94a3b8;--t3:#64748b;--b1:#1e293b;--b2:#334155;--r:12px;--rs:8px}
+        /* ... (중략) ... */
+    </style>
+</head>
+<body>
+    <div id="LP"> <!-- 로그인 화면 동일 --> </div>
+    <div id="AP" style="display:none;"> <!-- 메인 화면 동일 --> </div>
+
+    <!-- 외부 라이브러리 로드 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script>
+        // 1. Supabase 설정 (본인의 정보로 교체 필수)
+        const SUPABASE_URL = 'https://본인의주소.supabase.co';
+        const SUPABASE_KEY = '본인의_anon_public_key';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let CU = null; // 현재 사용자
+        let currentSiteId = null; // 현재 보고 있는 현장 ID
+
+        // 2. 로그인 함수 (서버 연동)
+        async function doLogin() {
+            const email = document.getElementById('loginId').value;
+            const password = document.getElementById('loginPw').value;
+
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                alert("로그인 실패: " + error.message);
+                return;
+            }
+
+            // 사용자 프로필(역할) 가져오기
+            const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+            CU = { ...data.user, ...profile };
+
+            setupApp();
+        }
+
+        // 3. 앱 초기화 및 권한 분리
+        function setupApp() {
+            document.getElementById('LP').style.display = 'none';
+            document.getElementById('AP').style.display = 'block';
+
+            const isAdmin = CU.role === 'admin';
+            
+            // 관리자 메뉴 보이기/숨기기
+            if (isAdmin) {
+                // 관리자 로직: 현장 리스트 페이지 로드
+                nav('adminSites'); 
+            } else {
+                // 매니저 로직: 배정된 현장으로 고정
+                currentSiteId = CU.assigned_site_id;
+                nav('dash');
+            }
+        }
+
+        // 4. PWA 서비스 워커 등록
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js');
+            });
+        }
+
+        /* 
+           기존의 rDash, rPT, init3D 등의 함수들을 
+           supabase.from('테이블명').select() 형태의 비동기 함수로 
+           모두 변경하여 아래에 추가합니다. 
+        */
+    </script>
+</body>
+</html>
